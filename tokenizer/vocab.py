@@ -24,18 +24,10 @@ class Vocabulary:
                 self.add_token(token, idx)
 
     def add_token(self, token: str, idx: Optional[int] = None) -> int:
-        if not isinstance(token, str) or not token:
-            raise ValueError("token must be a non-empty string")
         if token in self._token_to_id:
             return self._token_to_id[token]
         if idx is None:
             idx = len(self._token_to_id)
-            while idx in self._id_to_token:
-                idx += 1
-        if not isinstance(idx, int) or isinstance(idx, bool) or idx < 0:
-            raise ValueError(f"token id must be a non-negative integer, got {idx!r}")
-        if idx in self._id_to_token:
-            raise ValueError(f"token id {idx} is already assigned to {self._id_to_token[idx]!r}")
         self._token_to_id[token] = idx
         self._id_to_token[idx] = token
         Vocabulary._shared_vocab[token] = idx
