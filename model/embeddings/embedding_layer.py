@@ -46,7 +46,7 @@ class EmbeddingLayer(nn.Module):
         d_model: Optional[int] = None,
         max_seq_len: Optional[int] = None,
         dropout: Optional[float] = None,
-        use_learned_pe: bool = True
+        use_learned_pe: bool = False
     ):
         super().__init__()
         cfg = _resolve_config(config)
