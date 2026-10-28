@@ -94,10 +94,14 @@ class InferenceEngine:
         self._prepare_model()
 
         max_tokens = max_new_tokens if max_new_tokens is not None else self.inference_config.max_new_tokens
-        if max_tokens <= 0:
+        if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 0:
+            raise ValueError(f"max_new_tokens must be a non-negative integer, got {max_tokens!r}")
+        if max_tokens == 0:
             return list(prompt_tokens)
         if self.model is None or not callable(self.model):
             raise RuntimeError("No inference model is available")
+        if not prompt_tokens:
+            raise ValueError("prompt_tokens must contain at least one token")
 
         if self.inference_config.beam_width > 1:
             input_tensor = torch.tensor([prompt_tokens], dtype=torch.long, device=self.device)
@@ -136,6 +140,8 @@ class InferenceEngine:
                 if self.model is not None and callable(self.model):
                     try:
                         logits = self.model(input_tensor, kv_cache=cache) if cache is not None else self.model(input_tensor)
+                        if isinstance(logits, tuple):
+                            logits = logits[0]
                         next_token_logits = logits[:, -1, :]  # (1, vocab_size)
 
                         next_token = sampler.sample(next_token_logits, generated_tokens=tokens).item()

@@ -17,7 +17,15 @@ def autoregressive_generate(
     Generate tokens autoregressively.
     input_ids shape: (batch_size, seq_len)
     """
+    if not isinstance(input_ids, torch.Tensor) or input_ids.ndim != 2:
+        shape = tuple(input_ids.shape) if isinstance(input_ids, torch.Tensor) else type(input_ids).__name__
+        raise ValueError(f"input_ids must be a 2D tensor, got {shape}")
+    if not isinstance(max_new_tokens, int) or isinstance(max_new_tokens, bool) or max_new_tokens < 0:
+        raise ValueError(f"max_new_tokens must be a non-negative integer, got {max_new_tokens!r}")
+
     generated = input_ids.clone()
+    if max_new_tokens > 0 and generated.size(1) == 0:
+        raise ValueError("input_ids must contain at least one token when generating")
     batch_size = generated.size(0)
     finished = torch.zeros(batch_size, dtype=torch.bool, device=generated.device)
     stop_criteria = StopCriteria(max_length=generated.size(1) + max_new_tokens, eos_token_id=eos_token_id)
@@ -44,6 +52,13 @@ def autoregressive_generate(
 
         if next_token.dim() == 1:
             next_token = next_token.unsqueeze(-1)
+        elif next_token.dim() == 0 and batch_size == 1:
+            next_token = next_token.reshape(1, 1)
+        if next_token.shape != (batch_size, 1):
+            raise ValueError(
+                f"sampler_fn must return one token per batch row with shape "
+                f"({batch_size}, 1), got {tuple(next_token.shape)}"
+            )
 
         if eos_token_id is not None:
             # Keep completed rows at EOS while the remaining batch continues.
