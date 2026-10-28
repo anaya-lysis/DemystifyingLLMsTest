@@ -77,9 +77,29 @@ def benchmark_generation_throughput(
     Returns:
         Dictionary containing total_time_sec, tokens_generated, and tokens_per_sec.
     """
+    if prompt_ids.ndim != 2 or prompt_ids.size(0) != 1:
+        raise ValueError(
+            f"prompt_ids must have shape (1, prompt_len), got {tuple(prompt_ids.shape)}"
+        )
+    if not isinstance(max_new_tokens, int) or isinstance(max_new_tokens, bool) or max_new_tokens < 0:
+        raise ValueError(f"max_new_tokens must be a non-negative integer, got {max_new_tokens!r}")
+
+    if prompt_ids.is_cuda:
+        synchronize = lambda: torch.cuda.synchronize(prompt_ids.device)
+    else:
+        synchronize = lambda: None
+    synchronize()
     start = time.perf_counter()
     output_ids = generate_fn(prompt_ids, max_new_tokens)
+    synchronize()
     elapsed = time.perf_counter() - start
+
+    if not isinstance(output_ids, torch.Tensor) or output_ids.ndim != 2:
+        raise ValueError("generate_fn must return a 2D token tensor")
+    if output_ids.size(0) != prompt_ids.size(0) or output_ids.size(1) < prompt_ids.size(1):
+        raise ValueError(
+            "generate_fn output must retain the prompt batch and contain the full prompt sequence"
+        )
 
     prompt_len = prompt_ids.size(1)
     total_len = output_ids.size(1)
