@@ -11,6 +11,7 @@ from config.inference_config import InferenceConfig
 from utils.logging_utils import get_logger
 from inference.sampling.sampler import Sampler
 from inference.generation.kv_cache import KVCache
+from inference.generation.beam_search import BeamSearch
 
 logger = get_logger("inference_engine")
 
@@ -95,6 +96,22 @@ class InferenceEngine:
         max_tokens = max_new_tokens if max_new_tokens is not None else self.inference_config.max_new_tokens
         if max_tokens <= 0:
             return list(prompt_tokens)
+        if self.model is None or not callable(self.model):
+            raise RuntimeError("No inference model is available")
+
+        if self.inference_config.beam_width > 1:
+            input_tensor = torch.tensor([prompt_tokens], dtype=torch.long, device=self.device)
+            eos_token_id = (
+                self.inference_config.stop_token_ids[0]
+                if self.inference_config.stop_token_ids else None
+            )
+            with torch.no_grad():
+                output = BeamSearch(
+                    beam_width=self.inference_config.beam_width,
+                    max_length=max_tokens,
+                    eos_token_id=eos_token_id,
+                ).search(self.model, input_tensor)
+            return [int(token_id) for token_id in output[0].tolist()]
 
         temp = temperature if temperature is not None else self.inference_config.temperature
         sampler = Sampler(
