@@ -51,10 +51,14 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         cfg = _resolve_config(config)
 
-        self.d_model = d_model or getattr(cfg, "d_model", 768)
-        self.n_heads = n_heads or getattr(cfg, "n_heads", 12)
+        self.d_model = d_model if d_model is not None else getattr(cfg, "d_model", 768)
+        self.n_heads = n_heads if n_heads is not None else getattr(cfg, "n_heads", 12)
         dropout_p = dropout if dropout is not None else getattr(cfg, "dropout", 0.1)
 
+        if not isinstance(self.d_model, int) or isinstance(self.d_model, bool) or self.d_model <= 0:
+            raise ValueError(f"d_model must be a positive integer, got {self.d_model!r}")
+        if not isinstance(self.n_heads, int) or isinstance(self.n_heads, bool) or self.n_heads <= 0:
+            raise ValueError(f"n_heads must be a positive integer, got {self.n_heads!r}")
         if self.d_model % self.n_heads != 0:
             raise ValueError(
                 f"d_model ({self.d_model}) must be divisible by n_heads ({self.n_heads})"
