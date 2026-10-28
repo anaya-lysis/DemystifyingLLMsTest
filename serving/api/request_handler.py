@@ -47,6 +47,10 @@ class RequestHandler:
                 max_new_tokens=max_tokens,
                 temperature=temperature
             )
+            if hasattr(generated_tokens, "detach"):
+                generated_tokens = generated_tokens.detach().reshape(-1).tolist()
+            else:
+                generated_tokens = list(generated_tokens)
         elif self.engine is not None and hasattr(self.engine, "generate"):
             raw_gen = self.engine.generate(prompt, tokenizer=self.tokenizer, max_new_tokens=max_tokens)
             response_text = raw_gen[len(prompt):] if isinstance(raw_gen, str) and raw_gen.startswith(prompt) else raw_gen
@@ -64,11 +68,27 @@ class RequestHandler:
                 completion_tokens = generated_tokens[len(prompt_tokens):]
             else:
                 completion_tokens = generated_tokens
+            stop_ids = set(getattr(
+                getattr(self.engine, "inference_config", None),
+                "stop_token_ids",
+                [],
+            ))
+            vocab = getattr(self.tokenizer, "vocab", None)
+            if vocab is not None and hasattr(vocab, "eos_token_id"):
+                stop_ids.add(vocab.eos_token_id)
+            finish_reason = "length"
+            completion_count = len(completion_tokens)
+            for index, token_id in enumerate(completion_tokens):
+                if token_id in stop_ids:
+                    completion_tokens = completion_tokens[:index]
+                    finish_reason = "stop"
+                    break
             if self.tokenizer is not None and hasattr(self.tokenizer, "decode"):
                 response_text = self.tokenizer.decode(completion_tokens)
             else:
                 response_text = " ".join(str(token) for token in completion_tokens)
-            completion_count = len(completion_tokens)
+        else:
+            finish_reason = "length"
 
         return {
             "id": f"cmpl-{uuid.uuid4().hex[:12]}",
@@ -80,7 +100,7 @@ class RequestHandler:
                 {
                     "text": response_text,
                     "index": 0,
-                    "finish_reason": "length"
+                    "finish_reason": finish_reason
                 }
             ],
             "usage": {
