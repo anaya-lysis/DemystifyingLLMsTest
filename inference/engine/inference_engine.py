@@ -10,6 +10,7 @@ from config.model_config import ModelConfig
 from config.inference_config import InferenceConfig
 from utils.logging_utils import get_logger
 from inference.sampling.sampler import Sampler
+from inference.generation.kv_cache import KVCache
 
 logger = get_logger("inference_engine")
 
@@ -105,15 +106,19 @@ class InferenceEngine:
         if self.inference_config.seed is not None:
             torch.manual_seed(self.inference_config.seed)
         tokens = list(prompt_tokens)
+        cache = None
+        if self.inference_config.use_kv_cache and isinstance(self.model, FullTransformerModel):
+            cache = KVCache(num_layers=self.model.num_layers)
 
         # Autoregressive generation loop
         with torch.no_grad():
             for _ in range(max_tokens):
-                input_tensor = torch.tensor([tokens], dtype=torch.long, device=self.device)
+                model_tokens = tokens if cache is None or cache.get_seq_length() == 0 else tokens[-1:]
+                input_tensor = torch.tensor([model_tokens], dtype=torch.long, device=self.device)
 
                 if self.model is not None and callable(self.model):
                     try:
-                        logits = self.model(input_tensor)
+                        logits = self.model(input_tensor, kv_cache=cache) if cache is not None else self.model(input_tensor)
                         next_token_logits = logits[:, -1, :]  # (1, vocab_size)
 
                         next_token = sampler.sample(next_token_logits, generated_tokens=tokens).item()

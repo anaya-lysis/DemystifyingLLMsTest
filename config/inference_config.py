@@ -15,7 +15,7 @@ class InferenceConfig:
     top_k: int = 50
     top_p: float = 0.9
     repetition_penalty: float = 1.1
-    stop_token_ids: List[int] = field(default_factory=list)
+    stop_token_ids: List[int] = field(default_factory=lambda: [50256])
     early_stopping: bool = True
     beam_width: int = 1         # 1 indicates greedy / stochastic sampling (non-beam)
     seed: Optional[int] = 42
