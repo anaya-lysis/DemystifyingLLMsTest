@@ -79,12 +79,12 @@ class RequestHandler:
             if vocab is not None and hasattr(vocab, "eos_token_id"):
                 stop_ids.add(vocab.eos_token_id)
             finish_reason = "length"
+            completion_count = len(completion_tokens)
             for index, token_id in enumerate(completion_tokens):
                 if token_id in stop_ids:
                     completion_tokens = completion_tokens[:index]
                     finish_reason = "stop"
                     break
-            completion_count = len(completion_tokens)
             if self.tokenizer is not None and hasattr(self.tokenizer, "decode"):
                 response_text = self.tokenizer.decode(completion_tokens)
             else:
