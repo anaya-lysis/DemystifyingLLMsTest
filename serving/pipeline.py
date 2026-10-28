@@ -84,8 +84,10 @@ class ServingPipeline:
         # Step 3: Decoding
         if self.tokenizer is not None and hasattr(self.tokenizer, "decode"):
             if isinstance(output, torch.Tensor):
-                out_tokens = output.argmax(dim=-1).squeeze(0).tolist()
+                out_tokens = output.squeeze(0).tolist()
                 return self.tokenizer.decode(out_tokens)
             return self.tokenizer.decode(tokens)
 
-        return f"{text} [processed]"
+        if output is None:
+            raise RuntimeError("No inference model is available")
+        return str(output)
