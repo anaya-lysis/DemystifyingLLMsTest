@@ -66,6 +66,8 @@ class ServingPipeline:
             self.model.eval()
         with torch.no_grad():
             max_tokens = max_new_tokens if max_new_tokens is not None else self.inference_config.max_new_tokens
+            if self.inference_config.seed is not None:
+                torch.manual_seed(self.inference_config.seed)
             sampler = Sampler(
                 temperature=self.inference_config.temperature,
                 top_k=self.inference_config.top_k,
